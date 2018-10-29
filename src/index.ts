@@ -1,13 +1,13 @@
+import { api, ApiError } from 'api-gateway-rest-handler';
 import * as AWS from 'aws-sdk';
-import { api, ApiError } from './api-base';
-import { authorizeToken, ensureAuthorized } from './auth';
+import { ensureAuthorized } from './auth';
 
 const bucketName = 'd.yyt.life';
 const downloadUrlBase = `https://${bucketName}`;
 const maxDistributionCount = 100;
 
 export const createDistribution = api(async req => {
-  await ensureAuthorized(req.headers['X-Auth-Token']);
+  await ensureAuthorized(req.header('X-Auth-Token'));
 
   const s3 = new AWS.S3();
   const { serviceName, platform, version } = req.pathParameters;
@@ -26,7 +26,7 @@ export const createDistribution = api(async req => {
 });
 
 export const deleteDistribution = api(async req => {
-  await ensureAuthorized(req.headers['X-Auth-Token']);
+  await ensureAuthorized(req.header('X-Auth-Token'));
 
   const s3 = new AWS.S3();
   const { serviceName, platform, version } = req.pathParameters;
@@ -109,12 +109,4 @@ export const listPlatformDistributions = api(async req => {
     platform,
     versions: keys.map(key => `${downloadUrlBase}/${key}`),
   };
-});
-
-export const authorizeService = api(async req => {
-  await authorizeToken(
-    req.headers['X-Auth-Token'],
-    req.headers['X-Auth-Secret'],
-  );
-  return 'ok';
 });

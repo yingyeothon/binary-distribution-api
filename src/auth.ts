@@ -1,5 +1,5 @@
+import { ApiError } from 'api-gateway-rest-handler';
 import * as AWS from 'aws-sdk';
-import { ApiError } from './api-base';
 
 const bucketName = 'yyt-config';
 const tokensKey = 'distribution-authentication-tokens';
@@ -37,7 +37,7 @@ export const ensureAuthorized = async (token?: string) => {
   }
 };
 
-export const authorizeToken = async (token: string, secret: string) => {
+export const authorizeToken = async (token?: string, secret?: string) => {
   const normalizedToken = (token || '').trim();
   if (!normalizedToken) {
     throw new ApiError('Invalid token', 400);

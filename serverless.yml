@@ -72,14 +72,3 @@ functions:
                 serviceName: true
                 platform: true
           cors: true
-  authorizeService:
-    handler: src/index.authorizeService
-    memorySize: 128
-    timeout: 5
-    events:
-      - http:
-          path: /auth
-          method: post
-          cors: true
-    environment:
-      BINARY_DISTRIBUTION_SECRET: ${env:BINARY_DISTRIBUTION_SECRET}
