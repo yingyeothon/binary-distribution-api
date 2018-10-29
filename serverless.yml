@@ -1,0 +1,85 @@
+service: yyt-binary-distribution-api
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: production
+  region: ap-northeast-2
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 's3:*'
+      Resource: '*'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+functions:
+  createDistribution:
+    handler: src/index.createDistribution
+    memorySize: 128
+    timeout: 5
+    events:
+      - http:
+          path: /{serviceName}/{platform}/{version}
+          method: put
+          request:
+            parameters:
+              paths:
+                serviceName: true
+                platform: true
+                version: true
+          cors: true
+  deleteDistribution:
+    handler: src/index.deleteDistribution
+    memorySize: 128
+    timeout: 5
+    events:
+      - http:
+          path: /{serviceName}/{platform}/{version}
+          method: delete
+          request:
+            parameters:
+              paths:
+                serviceName: true
+                platform: true
+                version: true
+          cors: true
+  listAllDistributions:
+    handler: src/index.listAllDistributions
+    memorySize: 128
+    timeout: 12
+    events:
+      - http:
+          path: /{serviceName}
+          method: get
+          request:
+            parameters:
+              paths:
+                serviceName: true
+          cors: true
+  listPlatformDistributions:
+    handler: src/index.listPlatformDistributions
+    memorySize: 128
+    timeout: 12
+    events:
+      - http:
+          path: /{serviceName}/{platform}
+          method: get
+          request:
+            parameters:
+              paths:
+                serviceName: true
+                platform: true
+          cors: true
+  authorizeService:
+    handler: src/index.authorizeService
+    memorySize: 128
+    timeout: 5
+    events:
+      - http:
+          path: /auth
+          method: post
+          cors: true
+    environment:
+      BINARY_DISTRIBUTION_SECRET: ${env:BINARY_DISTRIBUTION_SECRET}
