@@ -3,6 +3,7 @@ import * as AWS from 'aws-sdk';
 import { ensureAuthorized } from './auth';
 
 const bucketName = 'd.yyt.life';
+const cloudFrontDistributionId = 'E3J0F0HBU3676';
 const downloadUrlBase = `https://${bucketName}`;
 const maxDistributionCount = 100;
 
@@ -40,6 +41,23 @@ export const deleteDistribution = api(async req => {
       Key: key,
     })
     .promise();
+
+  const cf = new AWS.CloudFront();
+  await new Promise<void>((resolve, reject) =>
+    cf.createInvalidation(
+      {
+        DistributionId: cloudFrontDistributionId,
+        InvalidationBatch: {
+          CallerReference: new Date().getTime().toString(),
+          Paths: {
+            Items: [`/${key}`],
+            Quantity: 1,
+          },
+        },
+      },
+      (error: AWS.AWSError) => (error ? reject(error) : resolve()),
+    ),
+  );
   return 'ok';
 });
 
