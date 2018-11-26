@@ -422,10 +422,10 @@ anymatch@^2.0.0:
     micromatch "^3.1.4"
     normalize-path "^2.1.1"
 
-api-gateway-rest-handler@^0.1.0:
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/api-gateway-rest-handler/-/api-gateway-rest-handler-0.1.0.tgz#d46961b9f34e87405384b89ceed6eab617a1e28a"
-  integrity sha512-4pqvkejq1CkiexMZ2Zd3q5YM0TK9+qJr+MriIGRN5012c7siK43X/JfsYvdNAuIhPCyj8+z8qr/9llYt2VF/2g==
+api-gateway-rest-handler@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/api-gateway-rest-handler/-/api-gateway-rest-handler-0.1.2.tgz#ed036e2e3c4fd3e8ab2ea8dc21f107ab3a9649d9"
+  integrity sha512-ZuJhx3SNt4QnR6p5rhrcI9CisqR12EtUFji+LrhKVVqGQ/0LJ6cn7Z1rRAugJJHBeg8U442GEllK93TXS3n00g==
 
 aproba@^1.0.3, aproba@^1.1.1:
   version "1.2.0"
