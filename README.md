@@ -30,7 +30,7 @@ curl -H "X-Auth-Token: YOUR-SECRET-TOKEN"
 
 ### createDistribution
 
-새로운 Distribution 을 업로드합니다.
+새로운 Distribution 을 업로드하기 위한 URL 을 받습니다.
 
 ```
 PUT /{serviceName}/{platform}/{version}
@@ -39,7 +39,17 @@ PUT /{serviceName}/{platform}/{version}
 예를 들어 다음과 같이 curl 로 요청할 수 있습니다.
 
 ```bash
-curl -T your-binary-file "https://your-api-server/hello-service/win32/hello-20181125.apk" -H "X-Auth-Token: YOUR-SECRET-TOKEN"
+curl -XPUT "https://your-api-server/hello-service/android/hello-20181125.apk" -H "X-Auth-Token: YOUR-SECRET-TOKEN"
+```
+
+이 반환 값으로 Upload 하기 위한 S3 의 Signed URL 이 반환됩니다. 이를 이용하여 curl 로 바로 업로드를 진행하려면 다음과 같이 `"` 문자를 제거한 후에 파일 업로드를 진행하면 됩니다.
+
+```bash
+curl -T your-binary-file "$( \
+  curl -XPUT \
+	  "https://your-api-server/hello-service/android/hello-20181125.apk" \
+	  -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
+  | tr -d '"')"
 ```
 
 ### deleteDistribution
@@ -53,7 +63,7 @@ DELETE /{serviceName}/{platform}/{version}
 예를 들어 다음과 같이 curl 로 요청할 수 있습니다.
 
 ```bash
-curl -XDELETE "https://your-api-server/hello-service/win32/hello-20181125.apk"
+curl -XDELETE "https://your-api-server/hello-service/android/hello-20181125.apk"
 ```
 
 ### listAllDistributions
@@ -73,7 +83,7 @@ curl -XGET https://your-api-server/hello-service
 {
 	"service": "hello-service",
 	"platforms": {
-		"linux": ["https://your-download-server/hello-service/win32/hello-20181125.apk"]
+		"linux": ["https://your-download-server/hello-service/android/hello-20181125.apk"]
 	}
 }
 ```
@@ -89,13 +99,13 @@ GET /{serviceName}
 예를 들어 다음과 같이 curl 로 요청할 수 있습니다.
 
 ```
-curl -XGET https://your-api-service/hello-service/win32
+curl -XGET https://your-api-service/hello-service/android
 
 # response
 {
 	"service": "hello-service",
-	"platform": "win32",
-	"versions": ["https://your-download-server/hello-world/win32/hello-20181125.apk"]
+	"platform": "android",
+	"versions": ["https://your-download-server/hello-world/android/hello-20181125.apk"]
 }
 ```
 
@@ -112,8 +122,12 @@ curl -XGET https://your-api-service/hello-service/win32
 
 다음의 API call 을 CI job 하단부에 넣어주면 됩니다.
 
-```
-curl -T new-binary-version.apk "https://api.yyt.life/d/your-service/your-platform/new-binary-version.apk" -H "X-Auth-Token: YOUR-SECRET-TOKEN"
+```bash
+curl -T new-binary-version "$( \
+  curl -XPUT \
+	  "https://api.yyt.life/d/your-service/your-platform/new-binary-version.apk" \
+	  -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
+  | tr -d '"')"
 ```
 
 만약 Travis-CI 와 같은 공개될 수 있는 CI 를 사용한다면 Secret Token 은 안전을 위해 secret 이나 적어도 environment variable 등으로 넣어주어야 합니다.
