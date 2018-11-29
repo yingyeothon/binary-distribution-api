@@ -120,6 +120,8 @@ curl -XGET https://your-api-service/hello-service/android
 
 ### CI
 
+#### curl
+
 다음의 API call 을 CI job 하단부에 넣어주면 됩니다.
 
 ```bash
@@ -131,3 +133,41 @@ curl -T new-binary-version "$( \
 ```
 
 만약 Travis-CI 와 같은 공개될 수 있는 CI 를 사용한다면 Secret Token 은 안전을 위해 secret 이나 적어도 environment variable 등으로 넣어주어야 합니다.
+
+#### script
+
+package 의 versioning 까지 고려하여 위 작업을 보다 깔끔하게 수행하기 위한 script 를 작성했습니다. [deploy-to-yyt.sh](https://github.com/yingyeothon/binary-distribution-api/tree/master/deploy-to-yyt.sh)
+
+다음의 환경변수를 미리 설정해두어야 합니다.
+
+| key                   | 설명                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| `YYT_DIST_AUTH_TOKEN` | `d.yyt.api`에 접근하기 위해 config service 를 통해 미리 발급받은 token 을 env 로 공급해야 합니다. |
+| `APP_VERSION`         | package name 뒤에 붙일 app 버전입니다. 기본 값은 `1.0.0`입니다.                                   |
+| `BUILD_NUMBER`        | build version 으로 app version 뒤에 붙습니다. 기본 값은 `0`입니다.                                |
+
+다음을 실행 인자로 넣어주어야 합니다.
+
+```bash
+./deploy-to-yyt.sh service-name platform-name package-name binary-file
+```
+
+| parameter       | 설명                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `service-name`  | `d.yyt.life/{serviceName}`에 해당하는 service name 입니다.                                                   |
+| `platform-name` | `d.yyt.life/{serviceName}/{platformName}`에 해당하는 platform name 입니다.                                   |
+| `package-name`  | `{package-name}-{app-version}.{build-number}.{extension}`으로 최종 결정되는 파일 이름의 package name 입니다. |
+| `binary-file`   | local 에서 생성되는 파일로 업로드하기 위한 파일입니다. `extension`은 여기서부터 추출되어 사용됩니다.         |
+
+따라서 다음과 같이 사용할 수 있습니다.
+
+```bash
+./deploy-to-yyt.sh hello android life.yyt.hello hello.apk
+```
+
+그리고 이 파일은 `https://d.yyt.life/deploy-to-yyt.sh` 으로 제공되므로 다음과 같이 한 번에 수행할 수도 있습니다.
+
+```bash
+curl -s https://d.yyt.life/deploy.to-yyt.sh \
+  | bash -s hello android life.yyt.hello hello.apk
+```
