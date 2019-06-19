@@ -3,16 +3,18 @@ import * as AWS from 'aws-sdk';
 import { ensureAuthorized } from './auth';
 import plist from './utils/plist';
 
-const bucketName = 'd.yyt.life';
-const cloudFrontDistributionId = 'E3J0F0HBU3676';
-const downloadUrlBase = `https://${bucketName}`;
+const bucketName = process.env.DIST_BUCKET!;
+const domainName = process.env.DIST_DOMAIN!;
+const cloudFrontDistributionId = process.env.DIST_CF_ID!;
+const downloadUrlBase = `https://${domainName}`;
 const maxDistributionCount = 100;
+
+const s3 = new AWS.S3();
 
 export const createDistribution = api(
   async req => {
     await ensureAuthorized(req.header('X-Auth-Token'));
 
-    const s3 = new AWS.S3();
     const { serviceName, platform, version } = req.pathParameters;
     if (!serviceName || !platform || !version) {
       throw new ApiError('Invalid path parameters');
@@ -33,7 +35,6 @@ export const createDistribution = api(
 export const deleteDistribution = api(async req => {
   await ensureAuthorized(req.header('X-Auth-Token'));
 
-  const s3 = new AWS.S3();
   const { serviceName, platform, version } = req.pathParameters;
   if (!serviceName || !platform || !version) {
     throw new ApiError('Invalid path parameters');
@@ -78,7 +79,6 @@ const sortedKeys = (
     .slice(0, Math.max(1, count));
 
 export const listAllDistributions = api(async req => {
-  const s3 = new AWS.S3();
   const { serviceName } = req.pathParameters;
   if (!serviceName) {
     throw new ApiError('Invalid path parameters');
@@ -119,7 +119,6 @@ const findPlatformDistributions = async (
   if (!serviceName || !platform) {
     throw new ApiError('Invalid path parameters');
   }
-  const s3 = new AWS.S3();
   const prefix = `${serviceName}/${platform}/`;
   const listing = await s3
     .listObjects({

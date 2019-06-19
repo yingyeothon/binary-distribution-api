@@ -7,9 +7,39 @@ provider:
   iamRoleStatements:
     - Effect: 'Allow'
       Action:
-        - 's3:*'
+        - 's3:GetObject'
+        - 's3:GetObjectAcl'
+        - 's3:PutObject'
+        - 's3:PutObjectAcl'
+        - 's3:DeleteObject'
+      Resource:
+        - 'arn:aws:s3:::${env:DIST_BUCKET}/*'
+    - Effect: 'Allow'
+      Action:
+        - 's3:ListBucket'
+      Resource:
+        - 'arn:aws:s3:::${env:DIST_BUCKET}'
+    - Effect: 'Allow'
+      Action:
         - 'cloudfront:CreateInvalidation'
-      Resource: '*'
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - arn:aws:cloudfront
+              - '' # No region for CloudFront
+              - Ref: AWS::AccountId
+              - distribution/${env:DIST_CF_ID}
+    - Effect: 'Allow'
+      Action:
+        - 's3:HeadObject'
+        - 's3:GetObject'
+      Resource:
+        - 'arn:aws:s3:::${env:CONFIG_BUCKET}/*'
+  environment:
+    CONFIG_BUCKET: ${env:CONFIG_BUCKET}
+    DIST_CONFIG_TOKENS: ${env:DIST_CONFIG_TOKENS}
+    DIST_BUCKET: ${env:DIST_BUCKET}
+    DIST_DOMAIN: ${env:DIST_DOMAIN}
 
 plugins:
   - serverless-webpack
@@ -87,3 +117,18 @@ functions:
                 packageName: true
                 semver: true
           cors: true
+
+resources:
+  Resources:
+    DistBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${env:DIST_BUCKET}
+        LifecycleConfiguration:
+          Rules:
+            - Id: Only90Days
+              Status: Enabled
+              ExpirationInDays: 90
+              NoncurrentVersionExpirationInDays: 7
+              AbortIncompleteMultipartUpload:
+                DaysAfterInitiation: 90

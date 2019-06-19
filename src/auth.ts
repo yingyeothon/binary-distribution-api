@@ -1,12 +1,12 @@
 import { ApiError } from 'api-gateway-rest-handler';
 import * as AWS from 'aws-sdk';
 
-const bucketName = 'yyt-config';
-const tokensKey = 'distribution-authentication-tokens';
+const bucketName = process.env.CONFIG_BUCKET!;
+const tokensKey = process.env.DIST_CONFIG_TOKENS!;
+
+const s3 = new AWS.S3();
 
 const loadTokens = async () => {
-  const s3 = new AWS.S3();
-
   const tokensObject = await s3
     .getObject({
       Bucket: bucketName,
@@ -49,7 +49,6 @@ export const authorizeToken = async (token?: string, secret?: string) => {
   }
 
   const tokens = await loadTokens();
-  const s3 = new AWS.S3();
   await s3
     .putObject({
       Bucket: bucketName,
