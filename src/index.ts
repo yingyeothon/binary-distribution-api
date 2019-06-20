@@ -1,5 +1,7 @@
 import { api, ApiError } from 'api-gateway-rest-handler';
+import { APIGatewayProxyHandler } from 'aws-lambda';
 import * as AWS from 'aws-sdk';
+import { DateTime } from 'luxon';
 import { ensureAuthorized } from './auth';
 import plist from './utils/plist';
 
@@ -7,6 +9,7 @@ const bucketName = process.env.DIST_BUCKET!;
 const domainName = process.env.DIST_DOMAIN!;
 const cloudFrontDistributionId = process.env.DIST_CF_ID!;
 const downloadUrlBase = `https://${domainName}`;
+const distApiUrlPrefix = process.env.DIST_API_URL_PREFIX!;
 const maxDistributionCount = 100;
 
 const s3 = new AWS.S3();
@@ -75,7 +78,10 @@ const sortedKeys = (
     .sort(
       (lhs, rhs) => rhs.LastModified!.getTime() - lhs.LastModified!.getTime(),
     )
-    .map(e => e.Key!)
+    .map(e => ({
+      key: e.Key!,
+      modified: DateTime.fromMillis(e.LastModified!.getTime()),
+    }))
     .slice(0, Math.max(1, count));
 
 export const listAllDistributions = api(async req => {
@@ -90,8 +96,10 @@ export const listAllDistributions = api(async req => {
     })
     .promise();
 
-  const platforms: { [platform: string]: string[] } = {};
-  for (const key of sortedKeys(listing.Contents)) {
+  const platforms: {
+    [platform: string]: Array<{ url: string; modified: string }>;
+  } = {};
+  for (const { key, modified } of sortedKeys(listing.Contents)) {
     const platform = key.split('/')[1];
     if (!platform) {
       continue;
@@ -99,7 +107,10 @@ export const listAllDistributions = api(async req => {
     if (!platforms[platform]) {
       platforms[platform] = [];
     }
-    platforms[platform].push(`${downloadUrlBase}/${key}`);
+    platforms[platform].push({
+      url: `${downloadUrlBase}/${key}`,
+      modified: modified.toFormat('yyyy-MM-dd HH:mm:ss'),
+    });
   }
   const count = +(req.queryStringParameters.count || `${maxDistributionCount}`);
   for (const platform of Object.keys(platforms)) {
@@ -126,7 +137,9 @@ const findPlatformDistributions = async (
       Prefix: prefix,
     })
     .promise();
-  const keys = sortedKeys(listing.Contents).slice(0, count);
+  const keys = sortedKeys(listing.Contents)
+    .slice(0, count)
+    .map(e => e.key);
   return {
     service: serviceName,
     platform,
@@ -167,3 +180,25 @@ export const getPlistForLatestIos = api(
   },
   { contentType: 'application/xml' },
 );
+
+export const redirectToIosManifest: APIGatewayProxyHandler = (
+  event,
+  _,
+  callback,
+) => {
+  const { packageName, semver }: { packageName?: string; semver?: string } =
+    event.pathParameters || {};
+  if (!packageName || !semver) {
+    callback(new ApiError('Invalid path parameters'));
+  } else {
+    callback(null, {
+      statusCode: 302,
+      headers: {
+        Location:
+          'itms-services://?action=download-manifest&url=' +
+          `${distApiUrlPrefix}/ios/${packageName}/${semver}/manifest.plist`,
+      },
+      body: '',
+    });
+  }
+};

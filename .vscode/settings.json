@@ -1,13 +1,13 @@
 {
   "editor.formatOnSave": true,
-  "javascript.format.enable": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.tslint": true
+  },
   "editor.tabSize": 2,
   "files.eol": "\n",
   "search.exclude": {
     "**/node_modules": true,
     "**/.serverless": true,
     "**/.webpack": true
-  },
-  "tslint.enable": true,
-  "tslint.autoFixOnSave": true
+  }
 }

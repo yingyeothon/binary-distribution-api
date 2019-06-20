@@ -40,6 +40,7 @@ provider:
     DIST_CONFIG_TOKENS: ${env:DIST_CONFIG_TOKENS}
     DIST_BUCKET: ${env:DIST_BUCKET}
     DIST_DOMAIN: ${env:DIST_DOMAIN}
+    DIST_API_URL_PREFIX: ${env:DIST_API_URL_PREFIX}
 
 plugins:
   - serverless-webpack
@@ -110,6 +111,20 @@ functions:
     events:
       - http:
           path: /ios/{packageName}/{semver}/manifest.plist
+          method: get
+          request:
+            parameters:
+              paths:
+                packageName: true
+                semver: true
+          cors: true
+  redirectToIosManifest:
+    handler: src/index.redirectToIosManifest
+    memorySize: 128
+    timeout: 12
+    events:
+      - http:
+          path: /ios-manifest/{packageName}/{semver}
           method: get
           request:
             parameters:
