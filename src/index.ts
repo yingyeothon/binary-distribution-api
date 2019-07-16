@@ -137,7 +137,8 @@ const findPlatformDistributions = async (
     versions: distributions
       .sort(sortByLatest)
       .filter(takeK(count))
-      .map(asDownloadVersion),
+      .map(asDownloadVersion)
+      .map(o => o.url),
   };
 };
 
@@ -162,7 +163,7 @@ export const getPlistForLatestIos = api(
 
     return plist({
       name: projectName,
-      downloadUrl: distributions.versions[0].url,
+      downloadUrl: distributions.versions[0],
       packageName,
       semver,
     });
@@ -193,15 +194,10 @@ export const redirectToIosManifest: APIGatewayProxyHandler = (
 };
 
 export const findExpiredDistributions = api(async req => {
-  try {
-    const count = +(req.queryStringParameters.count || `100`);
-    const map = await traverseAll();
-    const expired = filterMap(map, objects =>
-      objects.sort(sortByLatest).filter(skipK(count)),
-    );
-    return flattenMap(expired).map(asDownloadVersion);
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  const count = +(req.queryStringParameters.count || `100`);
+  const map = await traverseAll();
+  const expired = filterMap(map, objects =>
+    objects.sort(sortByLatest).filter(skipK(count)),
+  );
+  return flattenMap(expired).map(asDownloadVersion);
 });
