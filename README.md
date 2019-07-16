@@ -32,7 +32,7 @@ curl -H "X-Auth-Token: YOUR-SECRET-TOKEN"
 
 새로운 Distribution 을 업로드하기 위한 URL 을 받습니다.
 
-```
+```text
 PUT /{serviceName}/{platform}/{version}
 ```
 
@@ -47,8 +47,8 @@ curl -XPUT "https://your-api-server/hello-service/android/hello-20181125.apk" -H
 ```bash
 curl -T your-binary-file "$( \
   curl -XPUT \
-	  "https://your-api-server/hello-service/android/hello-20181125.apk" \
-	  -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
+    "https://your-api-server/hello-service/android/hello-20181125.apk" \
+    -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
   | tr -d '"')"
 ```
 
@@ -56,7 +56,7 @@ curl -T your-binary-file "$( \
 
 예전에 업로드한 Distribution 을 제거합니다.
 
-```
+```text
 DELETE /{serviceName}/{platform}/{version}
 ```
 
@@ -70,21 +70,21 @@ curl -XDELETE "https://your-api-server/hello-service/android/hello-20181125.apk"
 
 업로드한 모든 플랫폼 별 최신 버전을 확인합니다.
 
-```
+```text
 GET /{serviceName}
 ```
 
 예를 들어 다음과 같이 curl 로 요청할 수 있습니다.
 
-```
+```text
 curl -XGET https://your-api-server/hello-service
 
 # response
 {
-	"service": "hello-service",
-	"platforms": {
-		"linux": ["https://your-download-server/hello-service/android/hello-20181125.apk"]
-	}
+  "service": "hello-service",
+  "platforms": {
+    "linux": ["https://your-download-server/hello-service/android/hello-20181125.apk"]
+  }
 }
 ```
 
@@ -92,20 +92,20 @@ curl -XGET https://your-api-server/hello-service
 
 특정 플랫폼에 소속된 버전 목록을 확인합니다.
 
-```
+```text
 GET /{serviceName}
 ```
 
 예를 들어 다음과 같이 curl 로 요청할 수 있습니다.
 
-```
+```text
 curl -XGET https://your-api-service/hello-service/android
 
 # response
 {
-	"service": "hello-service",
-	"platform": "android",
-	"versions": ["https://your-download-server/hello-world/android/hello-20181125.apk"]
+  "service": "hello-service",
+  "platform": "android",
+  "versions": ["https://your-download-server/hello-world/android/hello-20181125.apk"]
 }
 ```
 
@@ -127,8 +127,8 @@ curl -XGET https://your-api-service/hello-service/android
 ```bash
 curl -T new-binary-version "$( \
   curl -XPUT \
-	  "https://api.yyt.life/d/your-service/your-platform/new-binary-version.apk" \
-	  -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
+    "https://api.yyt.life/d/your-service/your-platform/new-binary-version.apk" \
+    -H "X-Auth-Token: YOUR-SECRET-TOKEN" \
   | tr -d '"')"
 ```
 
