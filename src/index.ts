@@ -194,7 +194,7 @@ export const redirectToIosManifest: APIGatewayProxyHandler = (
 
 export const findExpiredDistributions = api(async req => {
   try {
-    const count = +(req.queryStringParameters.count || `30`);
+    const count = +(req.queryStringParameters.count || `100`);
     const map = await traverseAll();
     const expired = filterMap(map, objects =>
       objects.sort(sortByLatest).filter(skipK(count)),
