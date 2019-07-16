@@ -41,8 +41,10 @@ $DOWNLOAD_URL_QUERY_URL = "https://api.yyt.life/d/$YYT_DIST_SERVICE_NAME/$YYT_DI
 
 Write-Output $DOWNLOAD_URL_QUERY_URL
 
-$UPLOAD_URL = (Invoke-RestMethod -Uri $DOWNLOAD_URL_QUERY_URL -Method Put -Headers $HEADERS)
+#$UPLOAD_URL = (Invoke-RestMethod -Uri $DOWNLOAD_URL_QUERY_URL -Method Put -Headers $HEADERS)
+$UPLOAD_URL = (curl.exe -s -XPUT $DOWNLOAD_URL_QUERY_URL -H "X-Auth-Token: $env:YYT_DIST_AUTH_TOKEN")
 
 Write-Output $UPLOAD_URL
 
-Invoke-RestMethod -Uri $UPLOAD_URL -Method Put -InFile $YYT_DIST_INPUT_FILE
+#Invoke-RestMethod -Uri $UPLOAD_URL -Method Put -InFile $YYT_DIST_INPUT_FILE
+curl.exe -s -XPUT $UPLOAD_URL --upload-file $YYT_DIST_INPUT_FILE
