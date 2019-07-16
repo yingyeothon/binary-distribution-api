@@ -49,7 +49,7 @@ plugins:
 functions:
   createDistribution:
     handler: src/index.createDistribution
-    memorySize: 128
+    memorySize: 256
     timeout: 5
     events:
       - http:
@@ -58,7 +58,7 @@ functions:
           cors: true
   deleteDistribution:
     handler: src/index.deleteDistribution
-    memorySize: 128
+    memorySize: 256
     timeout: 5
     events:
       - http:
@@ -67,7 +67,7 @@ functions:
           cors: true
   listAllDistributions:
     handler: src/index.listAllDistributions
-    memorySize: 128
+    memorySize: 256
     timeout: 12
     events:
       - http:
@@ -76,7 +76,7 @@ functions:
           cors: true
   listPlatformDistributions:
     handler: src/index.listPlatformDistributions
-    memorySize: 128
+    memorySize: 256
     timeout: 12
     events:
       - http:
@@ -85,7 +85,7 @@ functions:
           cors: true
   getPlistForLatestIos:
     handler: src/index.getPlistForLatestIos
-    memorySize: 128
+    memorySize: 256
     timeout: 12
     events:
       - http:
@@ -94,7 +94,7 @@ functions:
           cors: true
   redirectToIosManifest:
     handler: src/index.redirectToIosManifest
-    memorySize: 128
+    memorySize: 256
     timeout: 12
     events:
       - http:
@@ -103,7 +103,7 @@ functions:
           cors: true
   findExpiredDistributions:
     handler: src/index.findExpiredDistributions
-    memorySize: 128
+    memorySize: 256
     timeout: 12
     events:
       - http:
