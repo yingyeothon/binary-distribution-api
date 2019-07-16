@@ -1,9 +1,11 @@
 const path = require('path');
 const slsw = require('serverless-webpack');
+const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
-  mode: 'production',
+  mode: slsw.lib.webpack.isLocal ? 'development' : 'production',
   entry: slsw.lib.entries,
+  devtool: 'source-map',
   resolve: {
     extensions: ['.js', '.json', '.ts', '.tsx'],
   },
@@ -13,16 +15,11 @@ module.exports = {
     filename: '[name].js',
   },
   target: 'node',
+  externals: [nodeExternals({ whitelist: /^((?!(aws-sdk)).)*$/ })],
   module: {
     rules: [
-      {
-        test: /\.ts(x?)$/,
-        use: [
-          {
-            loader: 'ts-loader',
-          },
-        ],
-      },
+      // all files with a `.ts` or `.tsx` extension will be handled by `ts-loader`
+      { test: /\.tsx?$/, loader: 'ts-loader' },
     ],
   },
 };
