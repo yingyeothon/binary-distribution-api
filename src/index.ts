@@ -1,9 +1,17 @@
 import { api, ApiError } from 'api-gateway-rest-handler';
 import { APIGatewayProxyHandler } from 'aws-lambda';
-import * as AWS from 'aws-sdk';
+import { CloudFront, S3 } from 'aws-sdk';
 import { DateTime } from 'luxon';
+import 'source-map-support/register';
 import { ensureAuthorized } from './auth';
+import { filterMap, flattenMap, sortByLatest } from './utils/distribution';
+import { skipK, takeK } from './utils/functional';
 import plist from './utils/plist';
+import {
+  traverseAll,
+  traverseInService,
+  traverseInServicePlatform,
+} from './utils/traversal';
 
 const bucketName = process.env.DIST_BUCKET!;
 const domainName = process.env.DIST_DOMAIN!;
@@ -12,17 +20,17 @@ const downloadUrlBase = `https://${domainName}`;
 const distApiUrlPrefix = process.env.DIST_API_URL_PREFIX!;
 const maxDistributionCount = 100;
 
-const s3 = new AWS.S3();
+const s3 = new S3();
 
 export const createDistribution = api(
   async req => {
     await ensureAuthorized(req.header('X-Auth-Token'));
 
-    const { serviceName, platform, version } = req.pathParameters;
-    if (!serviceName || !platform || !version) {
+    const { serviceName: service, platform, version } = req.pathParameters;
+    if (!service || !platform || !version) {
       throw new ApiError('Invalid path parameters');
     }
-    const key = `${serviceName}/${platform}/${version}`;
+    const key = `${service}/${platform}/${version}`;
     const signedUrl = s3.getSignedUrl('putObject', {
       Bucket: bucketName,
       Key: key,
@@ -38,11 +46,11 @@ export const createDistribution = api(
 export const deleteDistribution = api(async req => {
   await ensureAuthorized(req.header('X-Auth-Token'));
 
-  const { serviceName, platform, version } = req.pathParameters;
-  if (!serviceName || !platform || !version) {
+  const { serviceName: service, platform, version } = req.pathParameters;
+  if (!service || !platform || !version) {
     throw new ApiError('Invalid path parameters');
   }
-  const key = `${serviceName}/${platform}/${version}`;
+  const key = `${service}/${platform}/${version}`;
   await s3
     .deleteObject({
       Bucket: bucketName,
@@ -50,7 +58,7 @@ export const deleteDistribution = api(async req => {
     })
     .promise();
 
-  const cf = new AWS.CloudFront();
+  const cf = new CloudFront();
   await new Promise<void>((resolve, reject) =>
     cf.createInvalidation(
       {
@@ -69,111 +77,92 @@ export const deleteDistribution = api(async req => {
   return 'ok';
 });
 
-const sortedKeys = (
-  objects?: AWS.S3.Object[],
-  count: number = maxDistributionCount,
-) =>
-  (objects || [])
-    .filter(e => e.Key && e.LastModified)
-    .sort(
-      (lhs, rhs) => rhs.LastModified!.getTime() - lhs.LastModified!.getTime(),
-    )
-    .map(e => ({
-      key: e.Key!,
-      modified: DateTime.fromMillis(e.LastModified!.getTime()),
-    }))
-    .slice(0, Math.max(1, count));
+interface IPlatformVersions {
+  [platform: string]: Array<{ url: string; modified: string }>;
+}
+
+const asDownloadVersion = (o: S3.Object) => ({
+  url: `${downloadUrlBase}/${o.Key!}`,
+  modified: DateTime.fromMillis(o.LastModified!.getTime()).toFormat(
+    `yyyy-MM-dd HH:mm:ss`,
+  ),
+});
 
 export const listAllDistributions = api(async req => {
-  const { serviceName } = req.pathParameters;
-  if (!serviceName) {
+  const { serviceName: service } = req.pathParameters;
+  if (!service) {
     throw new ApiError('Invalid path parameters');
   }
-  const listing = await s3
-    .listObjects({
-      Bucket: bucketName,
-      Prefix: `${serviceName}/`,
-    })
-    .promise();
 
-  const platforms: {
-    [platform: string]: Array<{ url: string; modified: string }>;
-  } = {};
-  for (const { key, modified } of sortedKeys(listing.Contents)) {
-    const platform = key.split('/')[1];
-    if (!platform) {
-      continue;
-    }
-    if (!platforms[platform]) {
-      platforms[platform] = [];
-    }
-    platforms[platform].push({
-      url: `${downloadUrlBase}/${key}`,
-      modified: modified.toFormat('yyyy-MM-dd HH:mm:ss'),
-    });
-  }
-  const count = +(req.queryStringParameters.count || `${maxDistributionCount}`);
-  for (const platform of Object.keys(platforms)) {
-    platforms[platform] = platforms[platform].slice(0, Math.max(1, count));
-  }
+  const count = Math.max(
+    1,
+    +(req.queryStringParameters.count || `${maxDistributionCount}`),
+  );
+  const map = await traverseInService({ service, count });
+  const latest = filterMap(map, objects =>
+    objects.sort(sortByLatest).filter(takeK(count)),
+  )[service];
+
+  const platforms = Object.keys(latest)
+    .map(platform => ({
+      platform,
+      versions: latest[platform].map(asDownloadVersion),
+    }))
+    .reduce(
+      (a, b) => Object.assign(a, { [b.platform]: b.versions }),
+      {} as IPlatformVersions,
+    );
   return {
-    service: serviceName,
+    service,
     platforms,
   };
 });
 
 const findPlatformDistributions = async (
-  serviceName: string,
+  service: string,
   platform: string,
   count: number,
 ) => {
-  if (!serviceName || !platform) {
+  if (!service || !platform) {
     throw new ApiError('Invalid path parameters');
   }
-  const prefix = `${serviceName}/${platform}/`;
-  const listing = await s3
-    .listObjects({
-      Bucket: bucketName,
-      Prefix: prefix,
-    })
-    .promise();
-  const keys = sortedKeys(listing.Contents)
-    .slice(0, count)
-    .map(e => e.key);
-  return {
-    service: serviceName,
+  const distributions = await traverseInServicePlatform({
+    service,
     platform,
-    versions: keys.map(key => `${downloadUrlBase}/${key}`),
+    count,
+  });
+  return {
+    service,
+    platform,
+    versions: distributions
+      .sort(sortByLatest)
+      .filter(takeK(count))
+      .map(asDownloadVersion),
   };
 };
 
 export const listPlatformDistributions = api(async req => {
-  const { serviceName, platform } = req.pathParameters;
+  const { serviceName: service, platform } = req.pathParameters;
   const count = +(req.queryStringParameters.count || `${maxDistributionCount}`);
-  return findPlatformDistributions(serviceName, platform, count);
+  return findPlatformDistributions(service, platform, count);
 });
 
 export const getPlistForLatestIos = api(
   async req => {
     const { packageName, semver } = req.pathParameters;
-    const serviceName = packageName.split('.')[2];
-    if (!serviceName) {
+    const service = packageName.split('.')[2];
+    if (!service) {
       throw new ApiError('Invalid path parameters');
     }
-    const projectName =
-      serviceName.charAt(0).toUpperCase() + serviceName.substr(1);
-    const distributions = await findPlatformDistributions(
-      serviceName,
-      'ios',
-      1,
-    );
+    const projectName = service.charAt(0).toUpperCase() + service.substr(1);
+    const distributions = await findPlatformDistributions(service, 'ios', 1);
     if (distributions.versions.length === 0) {
       throw new ApiError(`No distribution for ${packageName}`);
     }
 
     return plist({
       name: projectName,
-      downloadUrl: distributions.versions[0],
+      downloadUrl: distributions.versions[0].url,
       packageName,
       semver,
     });
@@ -202,3 +191,17 @@ export const redirectToIosManifest: APIGatewayProxyHandler = (
     });
   }
 };
+
+export const findExpiredDistributions = api(async req => {
+  try {
+    const count = +(req.queryStringParameters.count || `30`);
+    const map = await traverseAll();
+    const expired = filterMap(map, objects =>
+      objects.sort(sortByLatest).filter(skipK(count)),
+    );
+    return flattenMap(expired).map(asDownloadVersion);
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+});
