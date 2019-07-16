@@ -55,12 +55,6 @@ functions:
       - http:
           path: /{serviceName}/{platform}/{version}
           method: put
-          request:
-            parameters:
-              paths:
-                serviceName: true
-                platform: true
-                version: true
           cors: true
   deleteDistribution:
     handler: src/index.deleteDistribution
@@ -70,12 +64,6 @@ functions:
       - http:
           path: /{serviceName}/{platform}/{version}
           method: delete
-          request:
-            parameters:
-              paths:
-                serviceName: true
-                platform: true
-                version: true
           cors: true
   listAllDistributions:
     handler: src/index.listAllDistributions
@@ -85,10 +73,6 @@ functions:
       - http:
           path: /{serviceName}
           method: get
-          request:
-            parameters:
-              paths:
-                serviceName: true
           cors: true
   listPlatformDistributions:
     handler: src/index.listPlatformDistributions
@@ -98,11 +82,6 @@ functions:
       - http:
           path: /{serviceName}/{platform}
           method: get
-          request:
-            parameters:
-              paths:
-                serviceName: true
-                platform: true
           cors: true
   getPlistForLatestIos:
     handler: src/index.getPlistForLatestIos
@@ -112,11 +91,6 @@ functions:
       - http:
           path: /ios/{packageName}/{semver}/manifest.plist
           method: get
-          request:
-            parameters:
-              paths:
-                packageName: true
-                semver: true
           cors: true
   redirectToIosManifest:
     handler: src/index.redirectToIosManifest
@@ -126,11 +100,15 @@ functions:
       - http:
           path: /ios-manifest/{packageName}/{semver}
           method: get
-          request:
-            parameters:
-              paths:
-                packageName: true
-                semver: true
+          cors: true
+  findExpiredDistributions:
+    handler: src/index.findExpiredDistributions
+    memorySize: 128
+    timeout: 12
+    events:
+      - http:
+          path: /expiration
+          method: get
           cors: true
 
 resources:
