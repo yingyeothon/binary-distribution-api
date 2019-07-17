@@ -1,12 +1,13 @@
 import { api, ApiError } from 'api-gateway-rest-handler';
 import { CloudFront, S3 } from 'aws-sdk';
+import { captureAWSClient } from 'aws-xray-sdk';
 import 'source-map-support/register';
 import { ensureAuthorized } from './auth';
 
 const bucketName = process.env.DIST_BUCKET!;
 const cloudFrontDistributionId = process.env.DIST_CF_ID!;
 
-const s3 = new S3();
+const s3 = captureAWSClient(new S3());
 
 export const createDistribution = api(
   async req => {

@@ -1,9 +1,12 @@
 service: yyt-binary-distribution-api
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs10.x
   stage: production
   region: ap-northeast-2
+  tracing:
+    apiGateway: true
+    lambda: true
   iamRoleStatements:
     - Effect: 'Allow'
       Action:

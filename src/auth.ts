@@ -1,10 +1,11 @@
 import { ApiError } from 'api-gateway-rest-handler';
-import * as AWS from 'aws-sdk';
+import { S3 } from 'aws-sdk';
+import { captureAWSClient } from 'aws-xray-sdk';
 
 const bucketName = process.env.CONFIG_BUCKET!;
 const tokensKey = process.env.DIST_CONFIG_TOKENS!;
 
-const s3 = new AWS.S3();
+const s3 = captureAWSClient(new S3());
 
 const loadTokens = async () => {
   const tokensObject = await s3

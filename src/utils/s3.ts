@@ -1,8 +1,9 @@
 import { S3 } from 'aws-sdk';
+import { captureAWSClient } from 'aws-xray-sdk';
 import pLimit from 'p-limit';
 import { flatten, unique } from './functional';
 
-const s3 = new S3();
+const s3 = captureAWSClient(new S3());
 const limit = pLimit(+(process.env.CONCURRENCY || '16'));
 
 type S3ListObjectLimiter = (listResult: S3.ListObjectsOutput) => boolean;
