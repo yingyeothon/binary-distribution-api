@@ -1,81 +1,19 @@
 import { api, ApiError } from 'api-gateway-rest-handler';
 import { APIGatewayProxyHandler } from 'aws-lambda';
-import { CloudFront, S3 } from 'aws-sdk';
-import { DateTime } from 'luxon';
+import { S3 } from 'aws-sdk';
 import 'source-map-support/register';
-import { ensureAuthorized } from './auth';
-import { filterMap, flattenMap, sortByLatest } from './utils/distribution';
-import { skipK, takeK } from './utils/functional';
+import { filterMap, sortByLatest } from './utils/distribution';
+import { takeK } from './utils/functional';
 import plist from './utils/plist';
 import {
-  traverseAll,
   traverseInService,
   traverseInServicePlatform,
 } from './utils/traversal';
 
-const bucketName = process.env.DIST_BUCKET!;
 const domainName = process.env.DIST_DOMAIN!;
-const cloudFrontDistributionId = process.env.DIST_CF_ID!;
 const downloadUrlBase = `https://${domainName}`;
 const distApiUrlPrefix = process.env.DIST_API_URL_PREFIX!;
 const maxDistributionCount = 100;
-
-const s3 = new S3();
-
-export const createDistribution = api(
-  async req => {
-    await ensureAuthorized(req.header('X-Auth-Token'));
-
-    const { serviceName: service, platform, version } = req.pathParameters;
-    if (!service || !platform || !version) {
-      throw new ApiError('Invalid path parameters');
-    }
-    const key = `${service}/${platform}/${version}`;
-    const signedUrl = s3.getSignedUrl('putObject', {
-      Bucket: bucketName,
-      Key: key,
-      Expires: 60 * 10,
-      ContentType: 'application/binary',
-      ACL: 'public-read',
-    });
-    return signedUrl;
-  },
-  { contentType: 'plain/text' },
-);
-
-export const deleteDistribution = api(async req => {
-  await ensureAuthorized(req.header('X-Auth-Token'));
-
-  const { serviceName: service, platform, version } = req.pathParameters;
-  if (!service || !platform || !version) {
-    throw new ApiError('Invalid path parameters');
-  }
-  const key = `${service}/${platform}/${version}`;
-  await s3
-    .deleteObject({
-      Bucket: bucketName,
-      Key: key,
-    })
-    .promise();
-
-  const cf = new CloudFront();
-  await new Promise<void>((resolve, reject) =>
-    cf.createInvalidation(
-      {
-        DistributionId: cloudFrontDistributionId,
-        InvalidationBatch: {
-          CallerReference: new Date().getTime().toString(),
-          Paths: {
-            Items: [`/${key}`],
-            Quantity: 1,
-          },
-        },
-      },
-      (error: AWS.AWSError) => (error ? reject(error) : resolve()),
-    ),
-  );
-  return 'ok';
-});
 
 interface IPlatformVersions {
   [platform: string]: Array<{ url: string; modified: string }>;
@@ -83,9 +21,7 @@ interface IPlatformVersions {
 
 const asDownloadVersion = (o: S3.Object) => ({
   url: `${downloadUrlBase}/${o.Key!}`,
-  modified: DateTime.fromMillis(o.LastModified!.getTime()).toFormat(
-    `yyyy-MM-dd HH:mm:ss`,
-  ),
+  modified: o.LastModified!,
 });
 
 export const listAllDistributions = api(async req => {
@@ -192,12 +128,3 @@ export const redirectToIosManifest: APIGatewayProxyHandler = (
     });
   }
 };
-
-export const findExpiredDistributions = api(async req => {
-  const count = +(req.queryStringParameters.count || `100`);
-  const map = await traverseAll();
-  const expired = filterMap(map, objects =>
-    objects.sort(sortByLatest).filter(skipK(count)),
-  );
-  return flattenMap(expired).map(asDownloadVersion);
-});
