@@ -11,17 +11,18 @@
     "debug": "SLS_DEBUG=* node --inspect ./node_modules/.bin/serverless offline -s dev"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.30",
+    "@types/aws-lambda": "^8.10.34",
     "@types/node": "10",
     "prettier": "^1.18.2",
-    "serverless": "^1.47.0",
-    "serverless-offline": "^5.7.3",
+    "serverless": "^1.57.0",
+    "serverless-offline": "^5.12.0",
+    "serverless-prune-plugin": "^1.4.1",
     "serverless-webpack": "^5.3.1",
-    "ts-loader": "^6.0.4",
-    "tslint": "^5.18.0",
+    "ts-loader": "^6.2.1",
+    "tslint": "^5.20.1",
     "tslint-config-prettier": "^1.18.0",
-    "typescript": "^3.5.3",
-    "webpack": "^4.35.3"
+    "typescript": "^3.7.2",
+    "webpack": "^4.41.2"
   },
   "prettier": {
     "printWidth": 80,
@@ -30,8 +31,8 @@
   },
   "dependencies": {
     "api-gateway-rest-handler": "^0.1.5",
-    "aws-xray-sdk": "^2.3.3",
-    "p-limit": "^2.2.0",
-    "source-map-support": "^0.5.12"
+    "aws-xray-sdk-core": "^2.4.0",
+    "p-limit": "^2.2.1",
+    "source-map-support": "^0.5.16"
   }
 }
