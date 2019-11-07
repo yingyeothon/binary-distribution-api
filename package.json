@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "start": "sls offline",
-    "deploy": "sls deploy",
+    "build": "node --max-old-space-size=4096 node_modules/serverless/bin/serverless package",
+    "deploy": "node --max-old-space-size=4096 node_modules/serverless/bin/serverless deploy",
     "debug": "SLS_DEBUG=* node --inspect ./node_modules/.bin/serverless offline -s dev"
   },
   "devDependencies": {

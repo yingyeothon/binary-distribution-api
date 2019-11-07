@@ -1,6 +1,6 @@
 import { api, ApiError } from 'api-gateway-rest-handler';
 import { CloudFront, S3 } from 'aws-sdk';
-import { captureAWSClient } from 'aws-xray-sdk';
+import { captureAWSClient } from 'aws-xray-sdk-core';
 import 'source-map-support/register';
 import { ensureAuthorized } from './auth';
 

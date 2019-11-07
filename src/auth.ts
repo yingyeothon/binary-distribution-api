@@ -1,6 +1,6 @@
 import { ApiError } from 'api-gateway-rest-handler';
 import { S3 } from 'aws-sdk';
-import { captureAWSClient } from 'aws-xray-sdk';
+import { captureAWSClient } from 'aws-xray-sdk-core';
 
 const bucketName = process.env.CONFIG_BUCKET!;
 const tokensKey = process.env.DIST_CONFIG_TOKENS!;

@@ -1,5 +1,5 @@
 import { S3 } from 'aws-sdk';
-import { captureAWSClient } from 'aws-xray-sdk';
+import { captureAWSClient } from 'aws-xray-sdk-core';
 import pLimit from 'p-limit';
 import { flatten, unique } from './functional';
 
@@ -163,4 +163,28 @@ export const transformAllObjects = async <R>({
     marker = listResult.Marker;
   }
   return result;
+};
+
+export const deleteObjects = async (bucketName: string, keys: string[]) => {
+  const bulkSize = 1000;
+  const outputs: S3.DeleteObjectsOutput[] = [];
+  const errors: Error[] = [];
+  for (let start = 0; start < keys.length; start += bulkSize) {
+    const targetKeys = keys.slice(start, start + bulkSize);
+    try {
+      const output = await s3
+        .deleteObjects({
+          Bucket: bucketName,
+          Delete: {
+            Objects: targetKeys.map(key => ({ Key: key })),
+            Quiet: false,
+          },
+        })
+        .promise();
+      outputs.push(output);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  return { outputs, errors };
 };

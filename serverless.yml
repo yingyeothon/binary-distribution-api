@@ -48,6 +48,15 @@ provider:
 plugins:
   - serverless-webpack
   - serverless-offline
+  - serverless-prune-plugin
+
+package:
+  individually: true
+
+custom:
+  prune:
+    automatic: true
+    number: 7
 
 functions:
   createDistribution:
@@ -113,6 +122,15 @@ functions:
           path: /expiration
           method: get
           cors: true
+  deleteExpiredDists:
+    handler: src/batch.deleteExpiredDistributions
+    memorySize: 1024
+    timeout: 30
+    events:
+      - http:
+          path: /expiration
+          method: delete
+      - schedule: cron(0 20 * * ? *)
 
 resources:
   Resources:
@@ -120,11 +138,3 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${env:DIST_BUCKET}
-        LifecycleConfiguration:
-          Rules:
-            - Id: Only90Days
-              Status: Enabled
-              ExpirationInDays: 90
-              NoncurrentVersionExpirationInDays: 7
-              AbortIncompleteMultipartUpload:
-                DaysAfterInitiation: 90
