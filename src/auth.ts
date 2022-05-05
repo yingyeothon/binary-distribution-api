@@ -1,60 +1,45 @@
-import { ApiError } from 'api-gateway-rest-handler';
-import { S3 } from 'aws-sdk';
-import { captureAWSClient } from 'aws-xray-sdk-core';
+import {
+  APIGatewayRequestAuthorizerEventV2,
+  APIGatewayRequestSimpleAuthorizerHandlerV2,
+} from "aws-lambda";
 
-const bucketName = process.env.CONFIG_BUCKET!;
-const tokensKey = process.env.DIST_CONFIG_TOKENS!;
+import { createVerifier } from "fast-jwt";
 
-const s3 = captureAWSClient(new S3());
+const secretKey = process.env.JWT_SECRET_KEY!;
+const verifyToken: (token: string) => any = createVerifier({ key: secretKey });
 
-const loadTokens = async () => {
-  const tokensObject = await s3
-    .getObject({
-      Bucket: bucketName,
-      Key: tokensKey,
-    })
-    .promise();
-  if (!tokensObject.Body) {
-    return [];
-  }
+const headerName = "x-auth-token";
+const cookieName = "login";
 
-  if (!(tokensObject.Body instanceof Buffer)) {
-    throw new ApiError('Invalid S3 Body type.', 500);
-  }
-  const tokens = tokensObject.Body.toString('utf-8');
-  return tokens
-    .split('\n')
-    .map(e => e.trim())
-    .filter(Boolean);
-};
-
-export const ensureAuthorized = async (token?: string) => {
-  if (!token) {
-    throw new ApiError('Invalid authentication token.', 401);
-  }
-  const tokens = await loadTokens();
-  if (!tokens.includes(token)) {
-    throw new ApiError('Invalid authentication token.', 401);
+export const authorize: APIGatewayRequestSimpleAuthorizerHandlerV2 = async (
+  event
+) => {
+  try {
+    const token =
+      findTokenFromHeader(event) ?? parseTokenFromCookie(event.cookies ?? []);
+    const { email } = verifyToken(token);
+    return {
+      isAuthorized: true,
+      context: { email },
+    };
+  } catch (error) {
+    return { isAuthorized: false, context: {} };
   }
 };
 
-export const authorizeToken = async (token?: string, secret?: string) => {
-  const normalizedToken = (token || '').trim();
-  if (!normalizedToken) {
-    throw new ApiError('Invalid token', 400);
-  }
+function findTokenFromHeader(
+  event: APIGatewayRequestAuthorizerEventV2
+): string | undefined {
+  return event.headers ? event.headers[headerName] : undefined;
+}
 
-  const envSecret = process.env.BINARY_DISTRIBUTION_SECRET;
-  if (!envSecret || envSecret !== secret) {
-    throw new ApiError('Invalid secret', 403);
-  }
-
-  const tokens = await loadTokens();
-  await s3
-    .putObject({
-      Bucket: bucketName,
-      Key: tokensKey,
-      Body: Array.from(new Set([...tokens, normalizedToken])).join('\n'),
-    })
-    .promise();
-};
+function parseTokenFromCookie(cookies: string[]): string {
+  const cookiePrefix = `${cookieName}=`;
+  return (
+    cookies
+      .filter((cookie) => cookie.includes(cookiePrefix))
+      .flatMap((cookie) => cookie.split(/;\s*/g))
+      .filter((part) => part.startsWith(cookiePrefix))[0]
+      ?.substring(cookiePrefix.length) ?? ""
+  );
+}

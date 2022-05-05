@@ -1,67 +1,70 @@
-import { api, ApiError } from 'api-gateway-rest-handler';
-import { APIGatewayProxyHandler } from 'aws-lambda';
-import { S3 } from 'aws-sdk';
-import 'source-map-support/register';
-import { filterMap, sortByLatest } from './utils/distribution';
-import { takeK } from './utils/functional';
-import plist from './utils/plist';
+import "source-map-support/register";
+
+import { APIGatewayProxyHandler, APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { filterMap, sortByLatest } from "./utils/distribution";
 import {
   traverseInService,
   traverseInServicePlatform,
-} from './utils/traversal';
+} from "./utils/traversal";
+
+import { BadRequest } from "./response";
+import { S3 } from "aws-sdk";
+import plist from "./utils/plist";
+import { takeK } from "./utils/functional";
 
 const domainName = process.env.DIST_DOMAIN!;
 const downloadUrlBase = `https://${domainName}`;
 const distApiUrlPrefix = process.env.DIST_API_URL_PREFIX!;
 const maxDistributionCount = 100;
 
-interface IPlatformVersions {
+interface PlatformVersions {
   [platform: string]: Array<{ url: string; modified: string }>;
 }
 
-const asDownloadVersion = (o: S3.Object) => ({
-  url: `${downloadUrlBase}/${o.Key!}`,
-  modified: o.LastModified!,
-});
+function asDownloadVersion(o: S3.Object) {
+  return {
+    url: `${downloadUrlBase}/${o.Key!}`,
+    modified: o.LastModified!,
+  };
+}
 
-export const listAllDistributions = api(async req => {
-  const { serviceName: service } = req.pathParameters;
+export const listAllDistributions: APIGatewayProxyHandlerV2<unknown> = async (
+  event
+) => {
+  const { serviceName: service } = event.pathParameters ?? {};
   if (!service) {
-    throw new ApiError('Invalid path parameters');
+    return BadRequest;
   }
 
   const count = Math.max(
     1,
-    +(req.queryStringParameters.count || `${maxDistributionCount}`),
+    +((event.queryStringParameters ?? {}).count || `${maxDistributionCount}`)
   );
   const map = await traverseInService({ service, count });
-  const latest = filterMap(map, objects =>
-    objects.sort(sortByLatest).filter(takeK(count)),
+  const latest = filterMap(map, (objects) =>
+    objects.sort(sortByLatest).filter(takeK(count))
   )[service];
 
   const platforms = Object.keys(latest)
-    .map(platform => ({
+    .map((platform) => ({
       platform,
       versions: latest[platform].map(asDownloadVersion),
     }))
     .reduce(
       (a, b) => Object.assign(a, { [b.platform]: b.versions }),
-      {} as IPlatformVersions,
+      {} as PlatformVersions
     );
   return {
     service,
     platforms,
   };
-});
+};
 
-const findPlatformDistributions = async (
+async function findPlatformDistributions(
   service: string,
   platform: string,
-  count: number,
-) => {
-  if (!service || !platform) {
-    throw new ApiError('Invalid path parameters');
-  }
+  count: number
+) {
   const distributions = await traverseInServicePlatform({
     service,
     platform,
@@ -74,57 +77,68 @@ const findPlatformDistributions = async (
       .sort(sortByLatest)
       .filter(takeK(count))
       .map(asDownloadVersion)
-      .map(o => o.url),
+      .map((o) => o.url),
   };
+}
+
+export const listPlatformDistributions: APIGatewayProxyHandlerV2<
+  unknown
+> = async (event) => {
+  const { serviceName: service, platform } = event.pathParameters ?? {};
+  const count = +(
+    (event.queryStringParameters ?? {}).count || `${maxDistributionCount}`
+  );
+  if (!service || !platform) {
+    return BadRequest;
+  }
+  return findPlatformDistributions(service, platform, count);
 };
 
-export const listPlatformDistributions = api(async req => {
-  const { serviceName: service, platform } = req.pathParameters;
-  const count = +(req.queryStringParameters.count || `${maxDistributionCount}`);
-  return findPlatformDistributions(service, platform, count);
-});
+export const getPlistForLatestIos: APIGatewayProxyHandlerV2 = async (event) => {
+  const { packageName, semver } = event.pathParameters ?? {};
+  if (!packageName || !semver) {
+    return BadRequest;
+  }
+  const service = packageName.split(".")[2];
+  if (!service) {
+    return BadRequest;
+  }
 
-export const getPlistForLatestIos = api(
-  async req => {
-    const { packageName, semver } = req.pathParameters;
-    const service = packageName.split('.')[2];
-    if (!service) {
-      throw new ApiError('Invalid path parameters');
-    }
-    const projectName = service.charAt(0).toUpperCase() + service.substr(1);
-    const distributions = await findPlatformDistributions(service, 'ios', 1);
-    if (distributions.versions.length === 0) {
-      throw new ApiError(`No distribution for ${packageName}`);
-    }
+  const projectName = service.charAt(0).toUpperCase() + service.substring(1);
+  const distributions = await findPlatformDistributions(service, "ios", 1);
+  if (distributions.versions.length === 0) {
+    return { statusCode: 404, body: `No distribution for ${packageName}` };
+  }
 
-    return plist({
+  return {
+    statusCode: 200,
+    headers: {
+      "Content-Type": "application/xml",
+    },
+    body: plist({
       name: projectName,
       downloadUrl: distributions.versions[0],
       packageName,
       semver,
-    });
-  },
-  { contentType: 'application/xml' },
-);
+    }),
+  };
+};
 
-export const redirectToIosManifest: APIGatewayProxyHandler = (
-  event,
-  _,
-  callback,
+export const redirectToIosManifest: APIGatewayProxyHandlerV2 = async (
+  event
 ) => {
   const { packageName, semver }: { packageName?: string; semver?: string } =
     event.pathParameters || {};
   if (!packageName || !semver) {
-    callback(new ApiError('Invalid path parameters'));
-  } else {
-    callback(null, {
-      statusCode: 302,
-      headers: {
-        Location:
-          'itms-services://?action=download-manifest&url=' +
-          `${distApiUrlPrefix}/ios/${packageName}/${semver}/manifest.plist`,
-      },
-      body: '',
-    });
+    return BadRequest;
   }
+  return {
+    statusCode: 302,
+    headers: {
+      Location:
+        "itms-services://?action=download-manifest&url=" +
+        `${distApiUrlPrefix}/ios/${packageName}/${semver}/manifest.plist`,
+    },
+    body: "",
+  };
 };

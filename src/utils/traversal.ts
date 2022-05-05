@@ -1,49 +1,53 @@
-import { S3 } from 'aws-sdk';
-import { asMap, IDistributionMap } from './distribution';
-import { iterateObjectRecursively, limitFetchCount } from './s3';
+import { DistributionMap, asMap } from "./distribution";
+import { iterateObjectRecursively, limitFetchCount } from "./s3";
+
+import { S3 } from "aws-sdk";
 
 const bucketName = process.env.DIST_BUCKET!;
 
-interface ITraverseArguments {
+interface TraverseArguments {
   count?: number;
 }
 
-export const traverseAll = async ({ count }: ITraverseArguments = {}): Promise<
-  IDistributionMap
-> =>
-  iterateObjectRecursively({
+export async function traverseAll({
+  count,
+}: TraverseArguments = {}): Promise<DistributionMap> {
+  return iterateObjectRecursively({
     bucketName,
     level: 2,
     limiter: limitFetchCount(count),
   }).then(asMap);
+}
 
-interface ITraverseServiceArguments extends ITraverseArguments {
+interface TraverseServiceArguments extends TraverseArguments {
   service: string;
 }
 
-export const traverseInService = async ({
+export async function traverseInService({
   service,
   count,
-}: ITraverseServiceArguments): Promise<IDistributionMap> =>
-  iterateObjectRecursively({
+}: TraverseServiceArguments): Promise<DistributionMap> {
+  return iterateObjectRecursively({
     bucketName,
     level: 1,
     prefix: `${service}/`,
     limiter: limitFetchCount(count),
   }).then(asMap);
+}
 
-interface ITraverseServicePlatformArguments extends ITraverseServiceArguments {
+interface TraverseServicePlatformArguments extends TraverseServiceArguments {
   platform: string;
 }
 
-export const traverseInServicePlatform = async ({
+export async function traverseInServicePlatform({
   service,
   platform,
   count,
-}: ITraverseServicePlatformArguments): Promise<S3.Object[]> =>
-  iterateObjectRecursively({
+}: TraverseServicePlatformArguments): Promise<S3.Object[]> {
+  return iterateObjectRecursively({
     bucketName,
     level: 0,
     prefix: `${service}/${platform}/`,
     limiter: limitFetchCount(count),
   });
+}

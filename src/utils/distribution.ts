@@ -1,17 +1,13 @@
-import { S3 } from 'aws-sdk';
-import { flatten } from './functional';
+import { S3 } from "aws-sdk";
+import { flatten } from "./functional";
 
-export interface IDistributionMap {
+export interface DistributionMap {
   [service: string]: {
     [platform: string]: S3.Object[];
   };
 }
 
-const ensureMap = (
-  map: IDistributionMap,
-  service: string,
-  platform: string,
-) => {
+function ensureMap(map: DistributionMap, service: string, platform: string) {
   if (!map[service]) {
     map[service] = {};
   }
@@ -19,10 +15,10 @@ const ensureMap = (
     map[service][platform] = [];
   }
   return map[service][platform];
-};
+}
 
-export const asMap = (objects: S3.Object[]): IDistributionMap => {
-  const map: IDistributionMap = {};
+export function asMap(objects: S3.Object[]): DistributionMap {
+  const map: DistributionMap = {};
   if (!objects) {
     return map;
   }
@@ -31,7 +27,7 @@ export const asMap = (objects: S3.Object[]): IDistributionMap => {
     if (!o.Key || !o.LastModified) {
       continue;
     }
-    const parts = o.Key.split('/');
+    const parts = o.Key.split("/");
     if (parts.length !== 3) {
       continue;
     }
@@ -39,41 +35,43 @@ export const asMap = (objects: S3.Object[]): IDistributionMap => {
     ensureMap(map, service, platform).push(o);
   }
   return map;
-};
+}
 
-export const sortByLatest = (a: S3.Object, b: S3.Object) =>
-  b.LastModified!.getTime() - a.LastModified!.getTime();
+export function sortByLatest(a: S3.Object, b: S3.Object): number {
+  return b.LastModified!.getTime() - a.LastModified!.getTime();
+}
 
 type DistributionsFilter = (
   objects: S3.Object[],
   service: string,
-  platform: string,
+  platform: string
 ) => S3.Object[];
 
-export const filterMap = (
-  map: IDistributionMap,
-  filter: DistributionsFilter,
-): IDistributionMap => {
-  const newMap: IDistributionMap = {};
+export function filterMap(
+  map: DistributionMap,
+  filter: DistributionsFilter
+): DistributionMap {
+  const newMap: DistributionMap = {};
   for (const service of Object.keys(map)) {
     for (const platform of Object.keys(map[service])) {
       const filtered = filter(map[service][platform], service, platform);
       if (filtered && filtered.length > 0) {
         Array.prototype.push.apply(
           ensureMap(newMap, service, platform),
-          filtered,
+          filtered
         );
       }
     }
   }
   return newMap;
-};
+}
 
-export const flattenMap = (map: IDistributionMap): S3.Object[] =>
-  flatten(
+export function flattenMap(map: DistributionMap): S3.Object[] {
+  return flatten(
     flatten(
-      Object.keys(map).map(service =>
-        Object.keys(map[service]).map(platform => map[service][platform]),
-      ),
-    ),
+      Object.keys(map).map((service) =>
+        Object.keys(map[service]).map((platform) => map[service][platform])
+      )
+    )
   );
+}

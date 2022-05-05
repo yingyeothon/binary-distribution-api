@@ -1,8 +1,19 @@
-export const flatten = <T>(input: T[][]) =>
-  (input || []).reduce((a, b) => a.concat(b), []);
+export function flatten<T>(input: T[][]) {
+  return (input || []).reduce((a, b) => a.concat(b), []);
+}
 
-export const unique = <T>(input: T[]) => Array.from(new Set(input));
+export function unique<T>(input: T[]) {
+  return Array.from(new Set(input));
+}
 
-export const skipK = (k: number) => (_: any, index: number) => index >= k;
+export function skipK(k: number) {
+  return function (_: any, index: number) {
+    return index >= k;
+  };
+}
 
-export const takeK = (k: number) => (_: any, index: number) => index < k;
+export function takeK(k: number) {
+  return function (_: any, index: number) {
+    return index < k;
+  };
+}

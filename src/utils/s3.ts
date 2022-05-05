@@ -1,44 +1,49 @@
-import { S3 } from 'aws-sdk';
-import { captureAWSClient } from 'aws-xray-sdk-core';
-import pLimit from 'p-limit';
-import { flatten, unique } from './functional';
+import { flatten, unique } from "./functional";
+
+import { S3 } from "aws-sdk";
+import { captureAWSClient } from "aws-xray-sdk-core";
+import pLimit from "p-limit";
 
 const s3 = captureAWSClient(new S3());
-const limit = pLimit(+(process.env.CONCURRENCY || '16'));
+const limit = pLimit(+(process.env.CONCURRENCY || "16"));
 
 type S3ListObjectLimiter = (listResult: S3.ListObjectsOutput) => boolean;
 
-export const acceptAllObjects = (objects: S3.Object[]) => objects;
+export function acceptAllObjects(objects: S3.Object[]) {
+  return objects;
+}
 
-export const limitFetchCount = (maxCount?: number) => {
+export function limitFetchCount(maxCount?: number) {
   if (!maxCount) {
-    return () => false;
+    return function () {
+      return false;
+    };
   }
   let currentCount = 0;
-  return (listResult: S3.ListObjectsOutput) => {
+  return function (listResult: S3.ListObjectsOutput) {
     if (listResult.Contents) {
       currentCount += listResult.Contents.length;
     }
     return currentCount >= maxCount;
   };
-};
+}
 
-interface IS3OperationArguments {
+interface S3OperationArguments {
   bucketName: string;
 }
 
-interface IIterateObjectArguments extends IS3OperationArguments {
+interface IterateObjectArguments extends S3OperationArguments {
   level: number;
   prefix?: string;
   limiter?: S3ListObjectLimiter;
 }
 
-export const iterateObjectRecursively = async ({
+export async function iterateObjectRecursively({
   bucketName,
   level,
   prefix,
   limiter,
-}: IIterateObjectArguments): Promise<S3.Object[]> => {
+}: IterateObjectArguments): Promise<S3.Object[]> {
   if (level < 0 || !bucketName) {
     throw new Error(`Illegal argument`);
   }
@@ -69,72 +74,76 @@ export const iterateObjectRecursively = async ({
     // Collect expired objects with a prefix of the next level.
     const nextPrefixes = await collectPrefix({ bucketName, prefix });
     return Promise.all(
-      nextPrefixes.map(nextPrefix =>
+      nextPrefixes.map((nextPrefix) =>
         limit(() =>
           iterateObjectRecursively({
             bucketName,
             level: level - 1,
             prefix: nextPrefix,
             limiter,
-          }),
-        ),
-      ),
+          })
+        )
+      )
     ).then(flatten);
   }
   return [];
-};
+}
 
-interface ICollectPrefixArguments extends IS3OperationArguments {
+interface CollectPrefixArguments extends S3OperationArguments {
   prefix?: string;
 }
 
-export const collectPrefix = async ({
+export async function collectPrefix({
   bucketName,
   prefix,
-}: ICollectPrefixArguments) =>
-  transformAllObjects({
-    transform: result =>
+}: CollectPrefixArguments): Promise<string[]> {
+  return transformAllObjects({
+    transform: (result) =>
       result.CommonPrefixes
-        ? result.CommonPrefixes.filter(cp => cp.Prefix).map(cp => cp.Prefix!)
+        ? result.CommonPrefixes.filter((cp) => cp.Prefix).map(
+            (cp) => cp.Prefix!
+          )
         : [],
     bucketName,
     prefix,
-    delimiter: '/',
+    delimiter: "/",
   })
     .then(flatten)
     .then(unique);
+}
 
-interface ICollectAllObjectsArguments extends IS3OperationArguments {
+interface CollectAllObjectsArguments extends S3OperationArguments {
   prefix?: string;
   limiter?: S3ListObjectLimiter;
 }
 
-export const collectAllObjects = async ({
+export async function collectAllObjects({
   bucketName,
   prefix,
   limiter,
-}: ICollectAllObjectsArguments) =>
-  transformAllObjects({
-    transform: result => (result.Contents ? result.Contents : []),
+}: CollectAllObjectsArguments): Promise<S3.Object[]> {
+  return transformAllObjects({
+    transform: (result) => (result.Contents ? result.Contents : []),
     bucketName,
     prefix,
     limiter,
   }).then(flatten);
+}
 
-interface ITransformAllObjectsArguments<R> extends IS3OperationArguments {
+interface TransformAllObjectsArguments<R> extends S3OperationArguments {
   prefix?: string;
   delimiter?: string;
   transform: (result: S3.ListObjectsOutput) => R;
   limiter?: S3ListObjectLimiter;
 }
 
-export const transformAllObjects = async <R>({
+export async function transformAllObjects<R>({
   bucketName,
   prefix,
   delimiter,
   transform,
   limiter,
-}: ITransformAllObjectsArguments<R>): Promise<R[]> => {
+}: TransformAllObjectsArguments<R>): Promise<R[]> {
   const result: R[] = [];
   let marker: string | undefined;
   while (true) {
@@ -163,9 +172,9 @@ export const transformAllObjects = async <R>({
     marker = listResult.Marker;
   }
   return result;
-};
+}
 
-export const deleteObjects = async (bucketName: string, keys: string[]) => {
+export async function deleteObjects(bucketName: string, keys: string[]) {
   const bulkSize = 1000;
   const outputs: S3.DeleteObjectsOutput[] = [];
   const errors: Error[] = [];
@@ -176,15 +185,15 @@ export const deleteObjects = async (bucketName: string, keys: string[]) => {
         .deleteObjects({
           Bucket: bucketName,
           Delete: {
-            Objects: targetKeys.map(key => ({ Key: key })),
+            Objects: targetKeys.map((key) => ({ Key: key })),
             Quiet: false,
           },
         })
         .promise();
       outputs.push(output);
-    } catch (error) {
+    } catch (error: any) {
       errors.push(error);
     }
   }
   return { outputs, errors };
-};
+}

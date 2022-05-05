@@ -6,33 +6,34 @@
   "license": "MIT",
   "scripts": {
     "start": "sls offline",
-    "build": "node --max-old-space-size=4096 node_modules/serverless/bin/serverless package",
-    "deploy": "node --max-old-space-size=4096 node_modules/serverless/bin/serverless deploy",
-    "debug": "SLS_DEBUG=* node --inspect ./node_modules/.bin/serverless offline -s dev"
+    "build": "sls package",
+    "deploy": "sls deploy"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.34",
-    "@types/node": "10",
-    "prettier": "^1.18.2",
-    "serverless": "^1.57.0",
-    "serverless-offline": "^5.12.0",
-    "serverless-prune-plugin": "^1.4.1",
-    "serverless-webpack": "^5.3.1",
-    "ts-loader": "^6.2.1",
-    "tslint": "^5.20.1",
-    "tslint-config-prettier": "^1.18.0",
-    "typescript": "^3.7.2",
-    "webpack": "^4.41.2"
-  },
-  "prettier": {
-    "printWidth": 80,
-    "singleQuote": true,
-    "trailingComma": "all"
+    "@serverless/typescript": "^3.15.2",
+    "@types/aws-lambda": "^8.10.95",
+    "@types/node": "14",
+    "@typescript-eslint/eslint-plugin": "^5.22.0",
+    "@typescript-eslint/parser": "^5.22.0",
+    "fork-ts-checker-webpack-plugin": "^7.2.11",
+    "prettier": "^2.6.2",
+    "serverless": "^3.16.0",
+    "serverless-offline": "^8.7.0",
+    "serverless-prune-plugin": "^2.0.1",
+    "serverless-s3-local": "^0.6.22",
+    "serverless-webpack": "^5.7.0",
+    "ts-loader": "^9.3.0",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.4",
+    "webpack": "^5.72.0"
   },
   "dependencies": {
-    "api-gateway-rest-handler": "^0.1.5",
-    "aws-xray-sdk-core": "^2.4.0",
-    "p-limit": "^2.2.1",
-    "source-map-support": "^0.5.16"
+    "aws-xray-sdk-core": "^3.3.5",
+    "fast-jwt": "^1.5.4",
+    "p-limit": "^4.0.0",
+    "source-map-support": "^0.5.21"
+  },
+  "optionalDependencies": {
+    "aws-sdk": "2.1055.0"
   }
 }
